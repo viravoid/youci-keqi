@@ -11,6 +11,7 @@ import { matchWord } from "@/lib/matchWord";
 import { SAMPLE, saveLastWord, toWordResult, type WordResult } from "@/lib/word-store";
 import { Intro } from "@/components/Intro";
 import { DepthBackground } from "@/components/DepthBackground";
+import { demoCases } from "@/lib/demoCases";
 import type { SavedWordEntry, SceneTag } from "@/types/wordMatch";
 
 export const Route = createFileRoute("/")({
@@ -244,9 +245,21 @@ function Index() {
         transition={{ duration: 0.7, ease: "easeOut", delay: 0.45 }}
         className="relative z-10 mx-auto mt-10 max-w-3xl px-6"
       >
-        <label className="block font-meta text-[11px] uppercase tracking-[0.24em] text-ink-soft">
-          写下此刻的感受
-        </label>
+        <div className="flex items-center justify-between gap-4">
+          <label className="block font-meta text-[11px] uppercase tracking-[0.24em] text-ink-soft">
+            写下此刻的感受
+          </label>
+          <button
+            type="button"
+            onClick={() => {
+              const index = Math.floor(Math.random() * demoCases.length);
+              setText(demoCases[index] ?? "");
+            }}
+            className="inline-flex shrink-0 items-center gap-1 font-meta text-[11px] uppercase tracking-[0.22em] text-ink-soft underline decoration-border decoration-1 underline-offset-4 transition hover:text-foreground"
+          >
+            试试示例
+          </button>
+        </div>
         <div className="group mt-3 rounded-md border border-border bg-card shadow-[0_1px_0_rgba(0,0,0,0.02),0_20px_40px_-30px_rgba(60,40,20,0.25)] transition focus-within:border-foreground/40 focus-within:shadow-[0_1px_0_rgba(0,0,0,0.02),0_30px_60px_-30px_rgba(60,40,20,0.4)]">
           <textarea
             value={text}
