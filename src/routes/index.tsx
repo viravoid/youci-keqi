@@ -182,7 +182,7 @@ function Index() {
   const headerOpacity = useTransform(scrollY, [0, 400], [1, 0.55]);
 
   return (
-    <div className="relative min-h-screen">
+    <div className="relative min-h-screen overflow-x-clip">
       <Intro />
       <DepthBackground zoom={revealing ? 1 : 0} />
       {/* Top masthead */}
@@ -550,7 +550,7 @@ function RevealOverlay({ word }: { word: WordResult }) {
           initial={{ opacity: 0, y: 24, filter: "blur(10px)" }}
           animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
           transition={{ delay: 0.5, duration: 0.9, ease: [0.16, 0.84, 0.24, 1] }}
-          className="mt-8 font-serif text-6xl leading-none tracking-tight text-foreground sm:text-8xl"
+          className="mt-8 break-words font-serif text-6xl leading-none tracking-tight text-foreground sm:text-8xl"
         >
           {word.word}
         </motion.h2>
@@ -588,7 +588,7 @@ function ResultCard({
       animate={{ opacity: 1, scale: 1, filter: "blur(0px)", y: 0 }}
       exit={{ opacity: 0, scale: 0.96, filter: "blur(6px)", y: 12 }}
       transition={{ duration: 1.1, ease: [0.16, 0.84, 0.24, 1] }}
-      className="relative overflow-hidden rounded-md border border-border bg-card p-8 shadow-[0_30px_60px_-40px_rgba(60,40,20,0.35)] sm:p-12"
+      className="relative min-w-0 overflow-hidden rounded-md border border-border bg-card p-8 shadow-[0_30px_60px_-40px_rgba(60,40,20,0.35)] sm:p-12"
     >
       <motion.div
         variants={container}
@@ -627,7 +627,7 @@ function ResultCard({
         <motion.h2
           layoutId="hero-word"
           transition={{ duration: 0.9, ease: [0.16, 0.84, 0.24, 1] }}
-          className="mt-4 font-serif text-6xl leading-none tracking-tight text-foreground sm:text-7xl"
+          className="mt-4 break-words font-serif text-6xl leading-none tracking-tight text-foreground sm:text-7xl"
         >
           {data.word}
         </motion.h2>
@@ -661,15 +661,15 @@ function ResultCard({
             {data.alternatives.map((a) => (
               <li
                 key={a.word}
-                className="flex flex-col gap-1 py-3 transition hover:bg-note/40 sm:flex-row sm:items-baseline sm:gap-6"
+                className="flex min-w-0 flex-col gap-1 py-3 transition hover:bg-note/40 sm:flex-row sm:items-baseline sm:gap-6"
               >
-                <span className="min-w-[140px] font-serif text-xl text-foreground">
+                <span className="min-w-0 break-words font-serif text-xl text-foreground sm:min-w-[140px]">
                   {a.word}
                 </span>
-                <span className="min-w-[88px] font-meta text-[11px] uppercase tracking-[0.2em] text-ink-soft">
+                <span className="min-w-0 break-words font-meta text-[11px] uppercase tracking-[0.2em] text-ink-soft sm:min-w-[88px]">
                   {a.language}
                 </span>
-                <span className="font-cn text-sm text-ink-soft">{a.hint}</span>
+                <span className="break-words font-cn text-sm text-ink-soft">{a.hint}</span>
               </li>
             ))}
           </ul>
@@ -681,7 +681,7 @@ function ResultCard({
           <div className="font-meta text-[11px] uppercase tracking-[0.24em] text-ink-soft">
             分享卡片文案
           </div>
-          <p className="mt-3 whitespace-pre-line font-serif text-lg leading-relaxed text-foreground">
+          <p className="mt-3 break-words whitespace-pre-line font-serif text-lg leading-relaxed text-foreground">
             {data.shareText}
           </p>
           <div className="mt-5 flex flex-wrap items-center gap-3">
@@ -719,7 +719,7 @@ function DefRow({
       <div className="font-meta text-[11px] uppercase tracking-[0.24em] text-ink-soft">
         {label}
       </div>
-      <p className="font-cn text-base leading-[1.85] text-foreground">
+      <p className="break-words font-cn text-base leading-[1.85] text-foreground">
         {children}
       </p>
     </div>
