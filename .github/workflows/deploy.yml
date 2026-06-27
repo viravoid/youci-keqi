@@ -31,10 +31,9 @@ jobs:
             -t "${{ secrets.EDGEONE_API_TOKEN }}" \
             --json | tee deploy-result.json
           python3 -c "
-          import re
-          data = open('deploy-result.json').read()
-          url = re.search(r'https://[^\"]+', data).group(0)
-          with open('url.txt','w') as f: f.write(url)
+          import json
+          data = json.load(open('deploy-result.json'))
+          with open('url.txt','w') as f: f.write(data['url'])
           "
 
       - name: Commit url.txt
