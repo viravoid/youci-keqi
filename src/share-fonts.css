@@ -1,0 +1,23 @@
+@font-face {
+  font-family: "WuQiu Hand";
+  src: url("./assets/fonts/wuqiuyingyuzhong.woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Huiwen Mincho";
+  src: url("./assets/fonts/huiwen-mincho.woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Xiaodou Utopia";
+  src: url("./assets/fonts/xiaodou-utopia.woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}

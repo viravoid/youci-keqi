@@ -1,18 +1,14 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { AnimatePresence, motion, useScroll, useTransform } from "framer-motion";
-import { addHistoryEntry, toggleSavedWord } from "@/lib/localHistory";
-import {
-  auditExpressionInput,
-  buildPrecisionContext,
-  type ExpressionAudit,
-} from "@/lib/expressionPrecision";
+import { AnimatePresence, motion } from "framer-motion";
+import { addHistoryEntry, replaceHistoryEntry, toggleSavedWord } from "@/lib/localHistory";
+import { buildSilentPrecisionContext } from "@/lib/expressionPrecision";
 import { matchWord } from "@/lib/matchWord";
+import { saveFeedback as logFeedback } from "@/lib/feedbackLog";
 import { SAMPLE, saveLastWord, toWordResult, type WordResult } from "@/lib/word-store";
 import { Intro } from "@/components/Intro";
 import { DepthBackground } from "@/components/DepthBackground";
-import { demoCases } from "@/lib/demoCases";
-import type { SavedWordEntry, SceneTag } from "@/types/wordMatch";
+import type { SavedWordEntry, SceneTag, WordMatchResult } from "@/types/wordMatch";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -40,6 +36,14 @@ const fadeUp = {
   show: { opacity: 1, y: 0 },
 };
 
+const loadingSteps = [
+  "先把这段感受拆成线索",
+  "检查词义有没有真正贴住",
+  "避开只像、但不准的近义词",
+  "去更远一点的语境里找",
+  "把候选词再核对一遍",
+];
+
 function inferScene(text: string): SceneTag {
   const normalized = text.toLocaleLowerCase();
   const sceneSignals: Array<[SceneTag, string[]]> = [
@@ -60,37 +64,39 @@ function Index() {
   const [result, setResult] = useState<WordResult | null>(null);
   const [resultEntry, setResultEntry] = useState<SavedWordEntry | null>(null);
   const [revealWord, setRevealWord] = useState<WordResult>(SAMPLE);
-  const [expressionAudit, setExpressionAudit] = useState<ExpressionAudit | null>(null);
-  const [pendingSubmission, setPendingSubmission] = useState<{
-    userText: string;
-    scene: SceneTag;
-  } | null>(null);
-  const [selectedPrecisionIds, setSelectedPrecisionIds] = useState<string[]>([]);
-  const [precisionSupplement, setPrecisionSupplement] = useState("");
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [loadingStep, setLoadingStep] = useState(0);
   const [revealing, setRevealing] = useState(false);
   const resultRef = useRef<HTMLDivElement>(null);
 
-  const resetPrecisionPrompt = () => {
-    setExpressionAudit(null);
-    setPendingSubmission(null);
-    setSelectedPrecisionIds([]);
-    setPrecisionSupplement("");
-  };
+  useEffect(() => {
+    if (!loading) {
+      setLoadingStep(0);
+      return;
+    }
+
+    const interval = window.setInterval(() => {
+      setLoadingStep((step) => (step + 1) % loadingSteps.length);
+    }, 1800);
+
+    return () => window.clearInterval(interval);
+  }, [loading]);
 
   const completeMatch = async (
     userText: string,
     scene: SceneTag,
-    precisionContext = "",
   ) => {
     setLoading(true);
     try {
+      const silentCtx = buildSilentPrecisionContext(userText, scene);
       const matched = await matchWord({
         userText,
         scene,
         excludedWord: result?.word,
-        precisionContext,
+        precisionContext: silentCtx,
       });
+
       const entry = addHistoryEntry(matched, userText, scene);
       const withInput = toWordResult(entry, userText, entry.seq);
       setRevealWord(withInput);
@@ -109,7 +115,10 @@ function Index() {
         });
         setTimeout(() => setRevealing(false), 700);
       }, 1700);
-    } catch {
+    } catch (err) {
+      console.error("matchWord failed:", err);
+      const msg = err instanceof Error ? err.message : "匹配失败，请稍后再试";
+      setErrorMessage(msg);
       setLoading(false);
       setRevealing(false);
     }
@@ -120,66 +129,43 @@ function Index() {
     if (!userText) return;
 
     const scene = inferScene(userText);
-    const audit = auditExpressionInput(userText, scene);
-    const shouldOpenPrecisionPrompt =
-      audit.shouldClarify ||
-      (audit.fuzzyPoints.length > 0 && userText.length > 0 && userText.length <= 12);
-
-    if (shouldOpenPrecisionPrompt) {
-      setExpressionAudit(audit);
-      setPendingSubmission({ userText, scene });
-      setSelectedPrecisionIds([]);
-      setPrecisionSupplement("");
-      return;
-    }
-
     await completeMatch(userText, scene);
   };
 
-  const togglePrecisionOption = (optionId: string) => {
-    setSelectedPrecisionIds((current) => {
-      if (optionId === "none-of-above") {
-        return current.includes(optionId) ? [] : [optionId];
-      }
+  const confirmAlternative = (
+    alternative: WordResult["alternatives"][number],
+    detail?: { shortMeaning: string; whyItFits: string; cultureNote: string; shareCopy: string },
+  ) => {
+    if (!resultEntry) return;
 
-      const withoutNone = current.filter((id) => id !== "none-of-above");
-      return withoutNone.includes(optionId)
-        ? withoutNone.filter((id) => id !== optionId)
-        : [...withoutNone, optionId];
-    });
+    const nextMatch: WordMatchResult = {
+      ...resultEntry,
+      word: alternative.word,
+      language: alternative.language,
+      pronunciation: "",
+      shortMeaning: detail?.shortMeaning ?? alternative.hint,
+      whyItFits: detail?.whyItFits ?? `你选择了这个备选词作为更贴切的表达：${alternative.hint}`,
+      cultureNote: detail?.cultureNote ?? "这是本次匹配里的备选词。",
+      shareCopy: detail?.shareCopy ?? `${alternative.word}：${alternative.hint}`,
+      alternatives: [
+        {
+          word: resultEntry.word,
+          language: resultEntry.language,
+          reason: "原先推荐的主词。",
+        },
+        ...resultEntry.alternatives.filter(
+          (item) =>
+            item.word !== alternative.word || item.language !== alternative.language,
+        ),
+      ].slice(0, 3),
+    };
+
+    const updatedEntry = replaceHistoryEntry(resultEntry, nextMatch);
+    const updatedResult = toWordResult(updatedEntry, updatedEntry.userText, updatedEntry.seq);
+    setResultEntry(updatedEntry);
+    setResult(updatedResult);
+    saveLastWord(updatedResult);
   };
-
-  const confirmPrecisionPrompt = async () => {
-    if (!pendingSubmission || !expressionAudit) return;
-
-    const selectedOptions = expressionAudit.options.filter((option) =>
-      selectedPrecisionIds.includes(option.id),
-    );
-    const skippedPrecision =
-      selectedOptions.length === 0 ||
-      selectedOptions.some((option) => option.id === "none-of-above");
-    const precisionContext = skippedPrecision
-      ? ""
-      : buildPrecisionContext(selectedOptions, precisionSupplement);
-
-    resetPrecisionPrompt();
-    await completeMatch(pendingSubmission.userText, pendingSubmission.scene, precisionContext);
-  };
-
-  const skipPrecisionPrompt = async () => {
-    if (!pendingSubmission) {
-      resetPrecisionPrompt();
-      return;
-    }
-
-    const submission = pendingSubmission;
-    resetPrecisionPrompt();
-    await completeMatch(submission.userText, submission.scene);
-  };
-
-  const { scrollY } = useScroll();
-  const headerY = useTransform(scrollY, [0, 600], [0, -40]);
-  const headerOpacity = useTransform(scrollY, [0, 400], [1, 0.55]);
 
   return (
     <div className="relative min-h-screen overflow-x-clip">
@@ -190,12 +176,11 @@ function Index() {
         initial="hidden"
         animate="show"
         variants={{ show: { transition: { staggerChildren: 0.08 } } }}
-        style={{ y: headerY, opacity: headerOpacity }}
-        className="relative z-10 mx-auto max-w-3xl px-6 pt-12 sm:pt-20"
+        className="relative z-10 mx-auto max-w-3xl px-6 pt-10 sm:pt-14"
       >
         <motion.div
           variants={fadeUp}
-          transition={{ duration: 0.6, ease: "easeOut" }}
+          transition={{ duration: 0.55, ease: "easeOut" }}
           className="flex items-center justify-between font-meta text-[11px] uppercase tracking-[0.28em] text-ink-soft"
         >
           <span>No. 001</span>
@@ -204,18 +189,15 @@ function Index() {
         </motion.div>
 
         <motion.div
-          variants={{
-            hidden: { scaleX: 0 },
-            show: { scaleX: 1 },
-          }}
-          transition={{ duration: 0.9, ease: "easeOut" }}
+          variants={{ hidden: { scaleX: 0 }, show: { scaleX: 1 } }}
+          transition={{ duration: 0.85, ease: "easeOut" }}
           style={{ transformOrigin: "left" }}
           className="mt-6 hairline"
         />
 
         <motion.h1
           variants={fadeUp}
-          transition={{ duration: 0.8, ease: "easeOut" }}
+          transition={{ duration: 0.7, ease: "easeOut" }}
           className="mt-8 font-serif text-5xl leading-[1.05] tracking-tight text-foreground sm:text-6xl"
         >
           有词可栖
@@ -232,7 +214,7 @@ function Index() {
 
         <motion.div
           variants={{ hidden: { scaleX: 0 }, show: { scaleX: 1 } }}
-          transition={{ duration: 0.9, ease: "easeOut", delay: 0.1 }}
+          transition={{ duration: 0.85, ease: "easeOut", delay: 0.1 }}
           style={{ transformOrigin: "left" }}
           className="mt-8 hairline"
         />
@@ -240,25 +222,15 @@ function Index() {
 
       {/* Composer */}
       <motion.section
-        initial={{ opacity: 0, y: 18 }}
+        initial={{ opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.7, ease: "easeOut", delay: 0.45 }}
-        className="relative z-10 mx-auto mt-10 max-w-3xl px-6"
+        transition={{ duration: 0.55, ease: "easeOut", delay: 0.28 }}
+        className="relative z-10 mx-auto mt-8 max-w-3xl px-6"
       >
         <div className="flex items-center justify-between gap-4">
           <label className="block font-meta text-[11px] uppercase tracking-[0.24em] text-ink-soft">
             写下此刻的感受
           </label>
-          <button
-            type="button"
-            onClick={() => {
-              const index = Math.floor(Math.random() * demoCases.length);
-              setText(demoCases[index] ?? "");
-            }}
-            className="inline-flex shrink-0 items-center gap-1 font-meta text-[11px] uppercase tracking-[0.22em] text-ink-soft underline decoration-border decoration-1 underline-offset-4 transition hover:text-foreground"
-          >
-            试试示例
-          </button>
         </div>
         <div className="group mt-3 rounded-md border border-border bg-card shadow-[0_1px_0_rgba(0,0,0,0.02),0_20px_40px_-30px_rgba(60,40,20,0.25)] transition focus-within:border-foreground/40 focus-within:shadow-[0_1px_0_rgba(0,0,0,0.02),0_30px_60px_-30px_rgba(60,40,20,0.4)]">
           <textarea
@@ -303,6 +275,27 @@ function Index() {
             「每一种感受，都值得一个名字。」
           </p>
         </div>
+        <AnimatePresence>
+          {loading ? <LoadingTrace step={loadingStep} /> : null}
+        </AnimatePresence>
+        <AnimatePresence>
+          {errorMessage ? (
+            <motion.div
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              className="mt-5 rounded-md border border-red-200 bg-red-50 px-4 py-3 font-cn text-sm text-red-700"
+            >
+              {errorMessage}
+              <button
+                onClick={() => setErrorMessage(null)}
+                className="ml-3 underline hover:text-red-900"
+              >
+                关闭
+              </button>
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
       </motion.section>
 
       {/* Result card */}
@@ -312,7 +305,12 @@ function Index() {
       >
         <AnimatePresence mode="wait">
           {result ? (
-            <ResultCard key={result.seq ?? result.word} data={result} entry={resultEntry} />
+            <ResultCard
+              key={result.seq ?? result.word}
+              data={result}
+              entry={resultEntry}
+              onAlternativeConfirm={confirmAlternative}
+            />
           ) : (
             <EmptyShelf key="empty" />
           )}
@@ -346,150 +344,62 @@ function Index() {
         {revealing && <RevealOverlay word={revealWord} />}
       </AnimatePresence>
 
-      <AnimatePresence>
-        {expressionAudit ? (
-          <PrecisionPrompt
-            audit={expressionAudit}
-            selectedIds={selectedPrecisionIds}
-            supplement={precisionSupplement}
-            onToggleOption={togglePrecisionOption}
-            onSupplementChange={setPrecisionSupplement}
-            onSkip={skipPrecisionPrompt}
-            onConfirm={confirmPrecisionPrompt}
-          />
-        ) : null}
-      </AnimatePresence>
     </div>
   );
 }
 
-function PrecisionPrompt({
-  audit,
-  selectedIds,
-  supplement,
-  onToggleOption,
-  onSupplementChange,
-  onSkip,
-  onConfirm,
-}: {
-  audit: ExpressionAudit;
-  selectedIds: string[];
-  supplement: string;
-  onToggleOption: (optionId: string) => void;
-  onSupplementChange: (value: string) => void;
-  onSkip: () => Promise<void>;
-  onConfirm: () => Promise<void>;
-}) {
+function LoadingTrace({ step }: { step: number }) {
   return (
     <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-foreground/20 px-4 backdrop-blur-sm"
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -6 }}
+      transition={{ duration: 0.28, ease: "easeOut" }}
+      className="mt-5 overflow-hidden rounded-md border border-border bg-card px-4 py-4 shadow-[0_18px_45px_-32px_rgba(60,40,20,0.5)]"
     >
-      <motion.div
-        initial={{ opacity: 0, y: 20, scale: 0.98 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={{ opacity: 0, y: 12, scale: 0.98 }}
-        transition={{ duration: 0.2, ease: "easeOut" }}
-        className="w-full max-w-2xl rounded-md border border-border bg-card p-6 shadow-[0_30px_80px_-40px_rgba(60,40,20,0.45)] sm:p-8"
-      >
-        <div className="font-meta text-[11px] uppercase tracking-[0.24em] text-ink-soft">
-          再补两笔，会更准
-        </div>
-        <h2 className="mt-3 font-serif text-3xl leading-tight text-foreground sm:text-4xl">
-          这段感受还有点宽，我们先缩小一点范围。
-        </h2>
-
-        {(audit.fuzzyPoints.length > 0 || audit.missingSignals.length > 0) && (
-          <div className="mt-5 space-y-2 rounded-md bg-note/60 p-4 font-cn text-sm leading-7 text-foreground">
-            {audit.fuzzyPoints.map((point) => (
-              <p key={point}>{point}</p>
-            ))}
-            {audit.missingSignals.map((signal) => (
-              <p key={signal}>{signal}</p>
-            ))}
-          </div>
-        )}
-
-        <p className="mt-5 font-cn text-sm leading-7 text-ink-soft">
-          先勾几个更接近的方向，也可以直接补一句更具体的事实。
-        </p>
-
-        <div className="mt-5 grid gap-3">
-          {audit.options.map((option) => {
-            const selected = selectedIds.includes(option.id);
-            return (
-              <button
-                key={option.id}
-                type="button"
-                onClick={() => onToggleOption(option.id)}
-                className={
-                  "rounded-md border p-4 text-left transition " +
-                  (selected
-                    ? "border-foreground bg-note/70"
-                    : "border-border bg-paper/50 hover:border-foreground/50")
-                }
-              >
-                <div className="flex items-start gap-3">
-                  <span
-                    aria-hidden="true"
-                    className={
-                      "mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full border text-xs " +
-                      (selected
-                        ? "border-foreground bg-foreground text-primary-foreground"
-                        : "border-border text-transparent")
-                    }
-                  >
-                    ✓
-                  </span>
-                  <div>
-                    <div className="font-cn text-base leading-7 text-foreground">
-                      {option.label}
-                    </div>
-                    <p className="mt-1 font-cn text-sm leading-6 text-ink-soft">
-                      {option.detail}
-                    </p>
-                  </div>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="mt-5">
-          <label className="font-meta text-[11px] uppercase tracking-[0.24em] text-ink-soft">
-            再补一句具体的
-          </label>
-          <p className="mt-2 font-cn text-sm leading-6 text-ink-soft">
-            {audit.memoryPrompt}
-          </p>
-          <textarea
-            value={supplement}
-            onChange={(e) => onSupplementChange(e.target.value)}
-            placeholder="比如：他当时说了什么，或者你身体上先出现了什么反应。"
-            rows={4}
-            className="mt-3 block w-full resize-none rounded-md border border-border bg-paper/70 p-4 font-cn text-base leading-relaxed text-foreground placeholder:text-ink-soft/60 focus:outline-none"
+      <div className="flex items-center gap-3">
+        <div className="relative h-9 w-9 shrink-0">
+          <motion.span
+            className="absolute inset-0 rounded-full border border-foreground/20"
+            animate={{ scale: [1, 1.2, 1], opacity: [0.9, 0.35, 0.9] }}
+            transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
+          />
+          <motion.span
+            className="absolute left-1/2 top-1/2 h-2 w-2 rounded-full bg-foreground"
+            style={{ marginLeft: -4, marginTop: -4 }}
+            animate={{ y: [0, -9, 0], opacity: [0.5, 1, 0.5] }}
+            transition={{ duration: 1.1, repeat: Infinity, ease: "easeInOut" }}
           />
         </div>
-
-        <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
-          <button
-            type="button"
-            onClick={onSkip}
-            className="inline-flex h-11 items-center justify-center rounded-full border border-border px-5 font-meta text-sm tracking-wide text-ink-soft transition hover:border-foreground hover:text-foreground"
-          >
-            跳过，直接匹配
-          </button>
-          <button
-            type="button"
-            onClick={onConfirm}
-            className="inline-flex h-11 items-center justify-center rounded-full bg-foreground px-6 font-meta text-sm tracking-wide text-primary-foreground transition hover:opacity-90"
-          >
-            用这些线索继续
-          </button>
+        <div className="min-w-0 flex-1">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={step}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.32, ease: "easeOut" }}
+              className="font-cn text-sm font-medium leading-6 text-foreground"
+            >
+              {loadingSteps[step]}
+            </motion.div>
+          </AnimatePresence>
+          <div className="mt-2 grid grid-cols-5 gap-1">
+            {loadingSteps.map((item, index) => (
+              <motion.div
+                key={item}
+                className="h-px rounded-full bg-foreground/20"
+                animate={{
+                  opacity: index === step ? 1 : 0.22,
+                  scaleX: index === step ? 1 : 0.75,
+                }}
+                transition={{ duration: 0.3, ease: "easeOut" }}
+                style={{ transformOrigin: "left" }}
+              />
+            ))}
+          </div>
         </div>
-      </motion.div>
+      </div>
     </motion.div>
   );
 }
@@ -572,16 +482,61 @@ function RevealOverlay({ word }: { word: WordResult }) {
 function ResultCard({
   data,
   entry,
+  onAlternativeConfirm,
 }: {
   data: WordResult;
   entry: SavedWordEntry | null;
+  onAlternativeConfirm: (
+    alternative: WordResult["alternatives"][number],
+    detail?: { shortMeaning: string; whyItFits: string; cultureNote: string; shareCopy: string },
+  ) => void;
 }) {
   const navigate = useNavigate();
   const [kept, setKept] = useState(false);
+  const [pendingAlternative, setPendingAlternative] = useState<
+    WordResult["alternatives"][number] | null
+  >(null);
+  const [altDetail, setAltDetail] = useState<
+    { shortMeaning: string; whyItFits: string; cultureNote: string; shareCopy: string } | null
+  >(null);
+  const [altLoading, setAltLoading] = useState(false);
   const container = {
     hidden: {},
     show: { transition: { staggerChildren: 0.12, delayChildren: 0.1 } },
   };
+
+  useEffect(() => {
+    setKept(entry?.saved ?? false);
+    setPendingAlternative(null);
+    setAltDetail(null);
+    setAltLoading(false);
+  }, [entry?.id, entry?.saved]);
+
+  const handleAltClick = (a: WordResult["alternatives"][number]) => {
+    setPendingAlternative(a);
+    setAltDetail(null);
+    setAltLoading(true);
+    const userText = entry ? ((entry as { userText?: string }).userText ?? "") : "";
+    const scene = entry?.scene ?? "";
+    fetch("/api/alternative-detail", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        word: a.word,
+        language: a.language,
+        userText,
+        scene,
+      }),
+    })
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.error) throw new Error(d.error);
+        setAltDetail(d);
+      })
+      .catch(() => setAltDetail(null))
+      .finally(() => setAltLoading(false));
+  };
+
   return (
     <motion.article
       initial={{ opacity: 0, scale: 0.7, filter: "blur(18px)", y: 30 }}
@@ -657,22 +612,92 @@ function ResultCard({
           <div className="font-meta text-[11px] uppercase tracking-[0.24em] text-ink-soft">
             备选词 · Adjacent Words
           </div>
-          <ul className="mt-4 divide-y divide-border border-y border-border">
-            {data.alternatives.map((a) => (
-              <li
-                key={a.word}
-                className="flex min-w-0 flex-col gap-1 py-3 transition hover:bg-note/40 sm:flex-row sm:items-baseline sm:gap-6"
-              >
-                <span className="min-w-0 break-words font-serif text-xl text-foreground sm:min-w-[140px]">
-                  {a.word}
-                </span>
-                <span className="min-w-0 break-words font-meta text-[11px] uppercase tracking-[0.2em] text-ink-soft sm:min-w-[88px]">
-                  {a.language}
-                </span>
-                <span className="break-words font-cn text-sm text-ink-soft">{a.hint}</span>
-              </li>
-            ))}
-          </ul>
+          {data.alternatives.length > 0 ? (
+            <ul className="mt-4 divide-y divide-border border-y border-border">
+              {data.alternatives.map((a) => (
+                <li
+                  key={`${a.language}-${a.word}`}
+                  className="py-3"
+                >
+                  <button
+                    type="button"
+                    onClick={() => handleAltClick(a)}
+                    className="flex w-full min-w-0 flex-col gap-1 text-left transition hover:bg-note/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-foreground/30 sm:flex-row sm:items-baseline sm:gap-6"
+                  >
+                    <span className="min-w-0 break-words font-serif text-xl text-foreground sm:min-w-[140px]">
+                      {a.word}
+                    </span>
+                    <span className="min-w-0 break-words font-meta text-[11px] uppercase tracking-[0.2em] text-ink-soft sm:min-w-[88px]">
+                      {a.language}
+                    </span>
+                    <span className="break-words font-cn text-sm text-ink-soft">{a.hint}</span>
+                  </button>
+                  {pendingAlternative?.word === a.word &&
+                  pendingAlternative.language === a.language ? (
+                    <div className="mt-3 rounded-md border border-border bg-note/70 p-4">
+                      {altLoading ? (
+                        <p className="font-cn text-sm text-ink-soft">正在查找「{a.word}」的详情…</p>
+                      ) : altDetail ? (
+                        <>
+                          <div className="space-y-3">
+                            <div>
+                              <span className="font-meta text-[10px] uppercase tracking-[0.2em] text-ink-soft">中文含义</span>
+                              <p className="mt-1 font-cn text-sm text-foreground">{altDetail.shortMeaning}</p>
+                            </div>
+                            <div>
+                              <span className="font-meta text-[10px] uppercase tracking-[0.2em] text-ink-soft">为什么适合你</span>
+                              <p className="mt-1 font-cn text-sm text-foreground">{altDetail.whyItFits}</p>
+                            </div>
+                            <div>
+                              <span className="font-meta text-[10px] uppercase tracking-[0.2em] text-ink-soft">文化说明</span>
+                              <p className="mt-1 font-cn text-sm text-foreground">{altDetail.cultureNote}</p>
+                            </div>
+                          </div>
+                          <div className="mt-4 hairline" />
+                          <p className="mt-3 font-cn text-sm text-foreground">
+                            这个是不是更贴切？确认后，只把「{a.word}」计入停靠过的词。
+                          </p>
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              onClick={() => onAlternativeConfirm(a, altDetail)}
+                              className="inline-flex h-8 items-center rounded-full bg-foreground px-4 font-cn text-xs text-primary-foreground transition hover:opacity-90"
+                            >
+                              是，停靠这个词
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setPendingAlternative(null)}
+                              className="inline-flex h-8 items-center rounded-full border border-border px-4 font-cn text-xs text-ink-soft transition hover:border-foreground hover:text-foreground"
+                            >
+                              先不换
+                            </button>
+                          </div>
+                        </>
+                      ) : (
+                        <div>
+                          <p className="font-cn text-sm text-red-700">获取详情失败</p>
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setPendingAlternative(null)}
+                              className="inline-flex h-8 items-center rounded-full border border-border px-4 font-cn text-xs text-ink-soft transition hover:border-foreground hover:text-foreground"
+                            >
+                              关闭
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="mt-4 border-y border-border py-4 font-cn text-sm text-ink-soft">
+              没有其他合适的选择
+            </div>
+          )}
           <FeedbackButtons data={data} entry={entry} />
         </motion.div>
 
@@ -767,6 +792,10 @@ function FeedbackButtons({
 
   const saveFeedback = (nextRating: "准" | "不准") => {
     if (typeof window === "undefined") return;
+
+    if (entry) {
+      logFeedback(data, userText, entry.scene, nextRating);
+    }
 
     const payload = {
       word: data.word,

@@ -1,0 +1,222 @@
+[
+  {
+    "word": "Razbliuto",
+    "language": "俄语 · Russian",
+    "pronunciation": "raz-BLYOO-toh",
+    "shortMeaning": "曾经亲近过的人变得陌生后，留下的复杂余波。",
+    "emotionTags": ["relationship_dissonance", "nostalgia"],
+    "sceneTags": ["亲密关系"],
+    "cultureNote": "这个词常见于跨语言情绪词整理中，常被用来描述旧有亲密感消退后的余波。具体词源和使用范围存在不确定性，更适合作为近似表达。",
+    "sourceConfidence": "low",
+    "keywords": ["陌生", "抵触", "亲近", "相处", "关系", "曾经", "爱", "变了"]
+  },
+  {
+    "word": "Unheimlich",
+    "language": "德语 · German",
+    "pronunciation": "OON-hime-likh",
+    "shortMeaning": "熟悉之物突然显得陌生、不安、难以靠近。",
+    "emotionTags": ["relationship_dissonance", "context_mismatch"],
+    "sceneTags": ["亲密关系", "日常瞬间"],
+    "cultureNote": "德语中常被译作不安的、诡异的，也常用于讨论熟悉事物突然变得陌生的体验。",
+    "sourceConfidence": "high",
+    "keywords": ["熟悉", "陌生", "不安", "诡异", "错位", "抵触", "突然"]
+  },
+  {
+    "word": "Saudade",
+    "language": "葡萄牙语 · Portuguese",
+    "pronunciation": "/sɐwˈdadʒi/",
+    "shortMeaning": "对缺席之人、事物或时光的深长怀念，带着温柔和疼痛。",
+    "emotionTags": ["nostalgia", "grief_bodyshock"],
+    "sceneTags": ["亲密关系", "友情家庭", "日常瞬间"],
+    "cultureNote": "Saudade 是葡语文化中常被提及的情绪词，常描述怀念、缺席和不可完全追回的亲密感。",
+    "sourceConfidence": "high",
+    "keywords": ["怀念", "想念", "缺席", "失去", "过去", "遗憾", "温柔"]
+  },
+  {
+    "word": "物の哀れ",
+    "language": "日语 · Japanese",
+    "pronunciation": "MOH-noh noh ah-WAH-reh",
+    "shortMeaning": "意识到事物无常时，被短暂之美轻轻触动的怅然。",
+    "emotionTags": ["afterglow", "nostalgia"],
+    "sceneTags": ["书影音余韵", "日常瞬间"],
+    "cultureNote": "常被用来说明日本文学和审美中的物哀意识，强调对流逝与无常的敏感。",
+    "sourceConfidence": "high",
+    "keywords": ["无常", "流逝", "短暂", "美", "怅然", "电影", "书", "音乐"]
+  },
+  {
+    "word": "幽玄",
+    "language": "日语 · Japanese",
+    "pronunciation": "YOO-gen",
+    "shortMeaning": "深远、幽微、无法被直接说尽的美感和余韵。",
+    "emotionTags": ["afterglow", "wordlessness"],
+    "sceneTags": ["书影音余韵", "日常瞬间"],
+    "cultureNote": "幽玄常见于日本传统美学语境，用来描述含蓄、深远而无法被直接说尽的体验。",
+    "sourceConfidence": "high",
+    "keywords": ["余韵", "幽微", "说不清", "深远", "美", "作品", "演唱会", "电影"]
+  },
+  {
+    "word": "Duende",
+    "language": "西班牙语 · Spanish",
+    "pronunciation": "DWEN-deh",
+    "shortMeaning": "艺术或表演中突然击中身体的幽暗力量与生命感。",
+    "emotionTags": ["afterglow", "grief_bodyshock"],
+    "sceneTags": ["书影音余韵"],
+    "cultureNote": "Duende 常与弗拉门戈和艺术体验相关，近似描述一种从深处升起、让人被击中的表现力。",
+    "sourceConfidence": "medium",
+    "keywords": ["演唱会", "舞台", "艺术", "击中", "身体", "激动", "点亮", "light"]
+  },
+  {
+    "word": "Sehnsucht",
+    "language": "德语 · German",
+    "pronunciation": "ZAYN-zookht",
+    "shortMeaning": "对远方、未知或未抵达之物的强烈渴望。",
+    "emotionTags": ["existential_exposure", "nostalgia"],
+    "sceneTags": ["自我追问", "工作学业", "日常瞬间"],
+    "cultureNote": "德语中常见的表达，包含渴望、追寻和无法完全满足的精神张力。",
+    "sourceConfidence": "high",
+    "keywords": ["远方", "渴望", "追问", "未来", "想要", "不满足", "未知"]
+  },
+  {
+    "word": "Toska",
+    "language": "俄语 · Russian",
+    "pronunciation": "TOHS-kah",
+    "shortMeaning": "没有明确对象的精神苦闷、渴望和空茫。",
+    "emotionTags": ["existential_exposure", "wordlessness"],
+    "sceneTags": ["自我追问", "日常瞬间"],
+    "cultureNote": "Toska 常被解释为一种难以译出的精神忧郁或无名渴望，不宜当作临床诊断词。",
+    "sourceConfidence": "medium",
+    "keywords": ["空", "苦闷", "虚无", "说不清", "无名", "活着", "意义"]
+  },
+  {
+    "word": "Weltschmerz",
+    "language": "德语 · German",
+    "pronunciation": "VELT-shmerts",
+    "shortMeaning": "理想与现实落差带来的世界性疲惫和疼痛。",
+    "emotionTags": ["context_mismatch", "existential_exposure"],
+    "sceneTags": ["工作学业", "自我追问"],
+    "cultureNote": "这个词常用来描述对世界现实的不满、幻灭与精神疲惫。",
+    "sourceConfidence": "high",
+    "keywords": ["现实", "理想", "疲惫", "世界", "失望", "幻灭", "压力"]
+  },
+  {
+    "word": "Litost",
+    "language": "捷克语 · Czech",
+    "pronunciation": "LEE-tost",
+    "shortMeaning": "意识到自身处境后涌上的屈辱、悲伤和自怜混合感。",
+    "emotionTags": ["context_mismatch", "relationship_dissonance"],
+    "sceneTags": ["亲密关系", "工作学业", "自我追问"],
+    "cultureNote": "Litost 因米兰·昆德拉的解释而常被跨语言讨论，适合表达复杂的受伤和自我意识。",
+    "sourceConfidence": "medium",
+    "keywords": ["委屈", "屈辱", "自尊", "受伤", "比较", "评价", "不甘"]
+  },
+  {
+    "word": "懐かしい",
+    "language": "日语 · Japanese",
+    "pronunciation": "naht-soo-KAH-shee",
+    "shortMeaning": "某个旧物或旧场景唤起亲切、温柔的怀旧感。",
+    "emotionTags": ["nostalgia"],
+    "sceneTags": ["日常瞬间", "友情家庭"],
+    "cultureNote": "日语中常用来表达怀念但不全然悲伤的旧日亲切感。",
+    "sourceConfidence": "high",
+    "keywords": ["小时候", "旧", "回忆", "亲切", "家", "朋友", "怀旧"]
+  },
+  {
+    "word": "Hiraeth",
+    "language": "威尔士语 · Welsh",
+    "pronunciation": "HEER-eyeth",
+    "shortMeaning": "对回不去的家园、时光或归属的深切想念。",
+    "emotionTags": ["nostalgia", "existential_exposure"],
+    "sceneTags": ["友情家庭", "自我追问"],
+    "cultureNote": "Hiraeth 常被解释为对家园和归属的乡愁，但也带有不可返回的失落。",
+    "sourceConfidence": "medium",
+    "keywords": ["家", "归属", "回不去", "故乡", "离开", "想念", "人群"]
+  },
+  {
+    "word": "Fernweh",
+    "language": "德语 · German",
+    "pronunciation": "FAIRN-vay",
+    "shortMeaning": "对远方的疼痛般向往，像反向的乡愁。",
+    "emotionTags": ["existential_exposure"],
+    "sceneTags": ["日常瞬间", "自我追问"],
+    "cultureNote": "德语里常用来描述对旅行、远方和未知生活的强烈向往。",
+    "sourceConfidence": "high",
+    "keywords": ["远方", "逃离", "旅行", "离开", "向往", "别处"]
+  },
+  {
+    "word": "金継ぎ",
+    "language": "日语 · Japanese",
+    "pronunciation": "kin-TSOO-ghee",
+    "shortMeaning": "破损之处被看见并成为新的纹理。",
+    "emotionTags": ["grief_bodyshock", "self_repair"],
+    "sceneTags": ["自我追问", "友情家庭"],
+    "cultureNote": "金继原指用漆和金粉修补陶器的工艺，常被借用来表达裂痕与修复的美学。",
+    "sourceConfidence": "high",
+    "keywords": ["修复", "裂痕", "破碎", "受伤", "重新", "伤口", "恢复"]
+  },
+  {
+    "word": "Jeong",
+    "language": "韩语 · Korean",
+    "pronunciation": "jung",
+    "shortMeaning": "长时间相处后生出的牵连、情分和难以切断的温度。",
+    "emotionTags": ["relationship_dissonance", "nostalgia"],
+    "sceneTags": ["亲密关系", "友情家庭"],
+    "cultureNote": "Jeong 常被用来描述人与人长期相处后形成的深厚情分和依恋。",
+    "sourceConfidence": "medium",
+    "keywords": ["相处", "情分", "朋友", "家人", "牵连", "舍不得", "旧关系"]
+  },
+  {
+    "word": "Resfeber",
+    "language": "瑞典语 · Swedish",
+    "pronunciation": "RACE-fay-ber",
+    "shortMeaning": "出发前混合着期待和紧张的心跳感。",
+    "emotionTags": ["context_mismatch", "afterglow"],
+    "sceneTags": ["工作学业", "日常瞬间"],
+    "cultureNote": "常被解释为旅行前的不安与兴奋，也可近似表达重大开始前的混合感。",
+    "sourceConfidence": "medium",
+    "keywords": ["开始", "出发", "紧张", "期待", "心跳", "不确定", "新"]
+  },
+  {
+    "word": "Depaysement",
+    "language": "法语 · French",
+    "pronunciation": "day-pay-eez-MAHN",
+    "shortMeaning": "离开熟悉环境后产生的异乡感、错位感和重新看见自己。",
+    "emotionTags": ["context_mismatch", "existential_exposure"],
+    "sceneTags": ["自我追问", "工作学业", "日常瞬间"],
+    "cultureNote": "法语中可描述脱离原有环境后的不适、陌生和新鲜感。",
+    "sourceConfidence": "high",
+    "keywords": ["离开", "人群", "环境", "陌生", "错位", "自己是谁", "异乡"]
+  },
+  {
+    "word": "Mamihlapinatapai",
+    "language": "雅甘语 · Yaghan",
+    "pronunciation": "mah-mee-lah-pee-nah-tah-pie",
+    "shortMeaning": "两个人都明白却都没有先开口的互相等待。",
+    "emotionTags": ["relationship_dissonance", "wordlessness"],
+    "sceneTags": ["亲密关系", "友情家庭"],
+    "cultureNote": "常被跨语言词汇文章引用，但具体语境和流传解释需谨慎看待。",
+    "sourceConfidence": "low",
+    "keywords": ["不开口", "沉默", "等待", "彼此", "关系", "想说", "卡住"]
+  },
+  {
+    "word": "Querencia",
+    "language": "西班牙语 · Spanish",
+    "pronunciation": "keh-REN-see-ah",
+    "shortMeaning": "一个让自己感到安全、能恢复力量的精神栖身处。",
+    "emotionTags": ["self_repair", "nostalgia"],
+    "sceneTags": ["日常瞬间", "自我追问", "友情家庭"],
+    "cultureNote": "这个词常被解释为人或动物感到安全、愿意返回的地方，也可作隐喻使用。",
+    "sourceConfidence": "medium",
+    "keywords": ["安全", "停靠", "栖身", "恢复", "地方", "靠近", "安心"]
+  },
+  {
+    "word": "Sisu",
+    "language": "芬兰语 · Finnish",
+    "pronunciation": "SEE-soo",
+    "shortMeaning": "在困难中继续向前的坚韧、胆气和内在硬度。",
+    "emotionTags": ["self_repair", "context_mismatch"],
+    "sceneTags": ["工作学业", "自我追问"],
+    "cultureNote": "芬兰语中常见的文化概念，描述逆境中的坚毅和持续行动。",
+    "sourceConfidence": "high",
+    "keywords": ["坚持", "困难", "压力", "继续", "硬撑", "工作", "学习"]
+  }
+]
