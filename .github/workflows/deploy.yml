@@ -34,7 +34,7 @@ jobs:
             -a global \
             -t "${{ secrets.EDGEONE_API_TOKEN }}" \
             --json 2>&1 | tee /tmp/deploy-output.txt
-          grep -oP 'https://[^"]+' /tmp/deploy-output.txt | head -1 > /tmp/deploy-url.txt
+          grep -oP 'EDGEONE_DEPLOY_URL=\Khttps://[^"]+' /tmp/deploy-output.txt | head -1 > /tmp/deploy-url.txt
           echo "DEPLOYED: $(cat /tmp/deploy-url.txt)"
 
       - name: Setup deploy key
