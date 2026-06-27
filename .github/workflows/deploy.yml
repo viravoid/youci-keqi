@@ -18,7 +18,7 @@ jobs:
           node-version: 22
 
       - name: Install
-        run: npm install
+        run: npm ci
 
       - name: Build
         run: NITRO_PRESET=edgeone-pages npm run build
@@ -31,13 +31,24 @@ jobs:
             -t "${{ secrets.EDGEONE_API_TOKEN }}" \
             --json | tee deploy-result.json
           python3 -c "
-          import json
-          data = json.load(open('deploy-result.json'))
-          with open('url.txt','w') as f: f.write(data['url'])
+          import re
+          data = open('deploy-result.json').read()
+          url = re.search(r'https://[^\"]+', data).group(0)
+          with open('/tmp/deploy-url.txt','w') as f: f.write(url)
           "
 
-      - name: Commit url.txt
+      - name: Setup deploy key
         run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.REDIRECT_DEPLOY_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan github.com >> ~/.ssh/known_hosts
+
+      - name: Update redirect
+        run: |
+          git clone git@github.com:viravoid/youci-redirect.git /tmp/youci-redirect
+          cp /tmp/deploy-url.txt /tmp/youci-redirect/url.txt
+          cd /tmp/youci-redirect
           git config user.email "actions@github.com"
           git config user.name "GitHub Actions"
           git add url.txt
