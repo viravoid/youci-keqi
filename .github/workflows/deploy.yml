@@ -18,7 +18,7 @@ jobs:
           node-version: 22
 
       - name: Install
-        run: npm ci
+        run: npm install
 
       - name: Build
         run: NITRO_PRESET=edgeone-pages npm run build
