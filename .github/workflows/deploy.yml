@@ -1,0 +1,44 @@
+name: Deploy to EdgeOne
+
+on:
+  schedule:
+    - cron: "0 */2 * * *"
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install
+        run: npm ci
+
+      - name: Build
+        run: NITRO_PRESET=edgeone-pages npm run build
+
+      - name: Deploy
+        run: |
+          npx edgeone makers deploy .edgeone \
+            -n "youci-keqi" \
+            -a global \
+            -t "${{ secrets.EDGEONE_API_TOKEN }}" \
+            --json | tee deploy-result.json
+          python3 -c "
+          import re
+          data = open('deploy-result.json').read()
+          url = re.search(r'https://[^\"]+', data).group(0)
+          with open('url.txt','w') as f: f.write(url)
+          "
+
+      - name: Commit url.txt
+        run: |
+          git add url.txt
+          git diff --staged --quiet || git commit -m "auto: refresh EdgeOne token"
+          git push
