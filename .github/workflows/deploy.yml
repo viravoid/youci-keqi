@@ -39,6 +39,8 @@ jobs:
 
       - name: Commit url.txt
         run: |
+          git config user.email "actions@github.com"
+          git config user.name "GitHub Actions"
           git add url.txt
           git diff --staged --quiet || git commit -m "auto: refresh EdgeOne token"
           git push
