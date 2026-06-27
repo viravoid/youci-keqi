@@ -33,12 +33,12 @@ jobs:
             -n "youci-keqi" \
             -a global \
             -t "${{ secrets.EDGEONE_API_TOKEN }}" \
-            --json | tee deploy-result.json
+            --json > deploy-result.json
           python3 -c "
-          import re
-          data = open('deploy-result.json').read()
-          url = re.search(r'https://[^\"]+', data).group(0)
-          with open('/tmp/deploy-url.txt','w') as f: f.write(url)
+          import json, sys
+          data = json.load(open('deploy-result.json'))
+          print(data['url'], file=open('/tmp/deploy-url.txt','w'))
+          print('DEPLOYED:', data['url'])
           "
 
       - name: Setup deploy key
