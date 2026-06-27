@@ -1,5 +1,1 @@
-https://youci-keqi-zi8ngqsh.edgeone.cool?eo_token=0a235c459015fbc39a529295282d9971&eo_time=1782543983
-EDGEONE_DEPLOY_TYPE=preset
-EDGEONE_PROJECT_ID=makers-r4ob3cndysio
-[90m[cli][0m[32m[✔] [0mYou can view your deployment in the EdgeOne Makers Console at: https://console.cloud.tencent.com/edgeone/pages/project/makers-r4ob3cndysio/deployment/dpf1li265wpa
-{
+https://youci-keqi-zi8ngqsh.edgeone.cool?eo_token=eb43c276397050b069399352a17fed14&eo_time=1782544118
