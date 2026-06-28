@@ -471,21 +471,23 @@ function pickReviewedWinner(
   return reviewRank(searched.review) > reviewRank(local.review) ? searched : local;
 }
 
-async function requestJson<T>({
+async function requestJsonOnce<T>({
   baseUrl,
   apiKey,
   model,
   prompt,
   schema,
+  timeoutMs,
 }: {
   baseUrl: string;
   apiKey: string;
   model: string;
   prompt: string;
-  schema: z.ZodType<T>;
+  schema: z.ZodType<T, any, any>;
+  timeoutMs: number;
 }) {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 25_000);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
     const response = await fetch(buildChatCompletionsUrl(baseUrl), {
@@ -507,7 +509,7 @@ async function requestJson<T>({
             content: prompt,
           },
         ],
-        temperature: 0.35,
+        temperature: 0.7,
         max_tokens: 2600,
         response_format: { type: "json_object" },
       }),
@@ -534,6 +536,35 @@ async function requestJson<T>({
   } finally {
     clearTimeout(timer);
   }
+}
+
+async function requestJson<T>(args: {
+  baseUrl: string;
+  apiKey: string;
+  model: string;
+  prompt: string;
+  schema: z.ZodType<T, any, any>;
+}) {
+  // Try up to 3 times with increasing timeouts (15s, 25s, 35s)
+  const timeouts = [15_000, 25_000, 35_000];
+  let lastError: unknown;
+
+  for (let i = 0; i < timeouts.length; i++) {
+    try {
+      return await requestJsonOnce({ ...args, timeoutMs: timeouts[i] });
+    } catch (err) {
+      lastError = err;
+      // Only retry on abort/timeout -- other errors are terminal
+      if (!(err instanceof DOMException && err.name === "AbortError")) {
+        throw err;
+      }
+      if (i < timeouts.length - 1) {
+        console.log(`[requestJson] attempt ${i + 1} timed out (${timeouts[i]}ms), retrying...`);
+      }
+    }
+  }
+
+  throw lastError;
 }
 
 async function requestWordMatch(args: {

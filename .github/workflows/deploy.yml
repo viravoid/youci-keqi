@@ -25,7 +25,10 @@ jobs:
         run: bun install
 
       - name: Build
-        run: NITRO_PRESET=edgeone-pages bun run build
+        run: |
+          echo '{"functions":{"ssr":{"timeout":60}}}' > edgeone.json
+          NITRO_PRESET=edgeone-pages bun run build
+          cp edgeone.json .edgeone/
 
       - name: Deploy
         run: |
