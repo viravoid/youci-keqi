@@ -145,6 +145,7 @@ function Harbor() {
           <br className="sm:hidden" />
           都在这里安静地停着。
         </p>
+        <HarborHeaderMotif />
         <div className="mt-8 hairline" />
 
         <div className="mt-6 flex flex-wrap items-baseline justify-between gap-3 font-meta text-[11px] uppercase tracking-[0.24em] text-ink-soft">
@@ -202,6 +203,7 @@ function Harbor() {
                           : "shadow-[0_20px_40px_-30px_rgba(60,40,20,0.25)] hover:shadow-[0_24px_48px_-28px_rgba(60,40,20,0.35)]")
                       }
                     >
+                      <HarborCardMotif open={isOpen} />
                       <button
                         aria-label={c.loved ? "取消留下" : "留下这枚词"}
                         onClick={(e) => {
@@ -318,6 +320,44 @@ function DefRow({ label, children }: { label: string; children: React.ReactNode 
         {label}
       </div>
       <p className="font-cn text-base leading-[1.85] text-foreground">{children}</p>
+    </div>
+  );
+}
+
+function HarborHeaderMotif() {
+  return (
+    <div
+      aria-hidden="true"
+      className="mt-6 flex items-center gap-4 text-ink-soft/70"
+    >
+      <span className="h-px w-14 bg-current opacity-35" />
+      <span className="relative block h-6 w-12">
+        <span className="absolute inset-x-1 top-4 h-px rounded-full bg-current opacity-35" />
+        <span className="absolute left-2 top-1 h-3 w-px bg-current opacity-45" />
+        <span className="absolute left-[5px] top-0 h-2 w-2 rounded-full border border-current opacity-45" />
+        <span className="absolute right-1 top-3 h-px w-4 rounded-full bg-current opacity-25" />
+      </span>
+      <span className="h-px w-24 bg-current opacity-15" />
+    </div>
+  );
+}
+
+function HarborCardMotif({ open }: { open: boolean }) {
+  return (
+    <div
+      aria-hidden="true"
+      className={
+        "pointer-events-none absolute right-5 top-5 transition duration-500 " +
+        (open ? "opacity-90" : "opacity-65 group-hover:opacity-85")
+      }
+    >
+      <div className="relative h-10 w-14 text-ink-soft/55">
+        <span className="absolute bottom-1 left-0 h-px w-8 rounded-full bg-current opacity-35" />
+        <span className="absolute bottom-0 left-1 h-px w-10 rounded-full bg-current opacity-20" />
+        <span className="absolute right-3 top-0 h-5 w-px bg-current opacity-45" />
+        <span className="absolute right-[9px] top-0 h-2.5 w-2.5 rounded-full border border-current opacity-45" />
+        <span className="absolute right-0 top-5 h-px w-4 rounded-full bg-current opacity-25" />
+      </div>
     </div>
   );
 }

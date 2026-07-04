@@ -379,8 +379,18 @@ function Index() {
         <div className="mt-6 flex items-center justify-between">
           <Link
             to="/harbor"
-            className="group inline-flex items-baseline gap-3 font-meta text-base leading-none text-foreground"
+            className="group inline-flex items-center gap-3 font-meta text-base leading-none text-foreground"
           >
+            <span
+              aria-hidden="true"
+              className="relative block h-7 w-9 shrink-0 text-ink-soft transition duration-500 group-hover:text-foreground"
+            >
+              <span className="absolute left-0 top-3 h-px w-full bg-current opacity-30" />
+              <span className="absolute left-1 top-[18px] h-px w-5 rounded-full bg-current opacity-35" />
+              <span className="absolute left-1 top-[21px] h-px w-6 rounded-full bg-current opacity-20" />
+              <span className="absolute right-2 top-1 h-4 w-px bg-current opacity-45" />
+              <span className="absolute right-[5px] top-0 h-2 w-2 rounded-full border border-current opacity-45" />
+            </span>
             <span className="underline decoration-border decoration-1 underline-offset-[6px] transition group-hover:decoration-foreground">
               翻看你停靠过的词
             </span>
