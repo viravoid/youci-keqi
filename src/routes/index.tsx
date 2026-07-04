@@ -330,9 +330,6 @@ function Index() {
               →
             </motion.span>
           </motion.button>
-          <p className="font-serif text-sm text-ink-soft">
-            「每一种感受，都值得一个名字。」
-          </p>
         </div>
         <AnimatePresence>
           {loading ? <LoadingTrace message={loadingMessage} /> : null}
@@ -468,9 +465,6 @@ function EmptyShelf() {
       transition={{ duration: 0.5, delay: 0.6 }}
       className="rounded-md border border-dashed border-border bg-card/40 px-6 py-8 text-center"
     >
-      <p className="font-cn text-sm text-ink-soft">
-        在上方写下一段感受，让一枚远方的词来认领它。
-      </p>
     </motion.div>
   );
 }
