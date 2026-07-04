@@ -75,18 +75,23 @@ export function isWordSaved(id?: string) {
   return listSavedWords().some((saved) => saved.id === id);
 }
 
-export function toggleSavedWord(entry: SavedWordEntry): SavedWordEntry {
+export function setSavedWord(entry: SavedWordEntry, saved: boolean): SavedWordEntry {
   const savedWords = listSavedWords();
   const exists = savedWords.some((saved) => saved.id === entry.id);
-  const updatedEntry = { ...entry, saved: !exists };
+  const updatedEntry = { ...entry, saved };
 
-  if (exists) {
+  if (saved) {
+    writeJson(
+      SAVED_KEY,
+      exists
+        ? savedWords.map((item) => (item.id === entry.id ? updatedEntry : item))
+        : [updatedEntry, ...savedWords],
+    );
+  } else if (exists) {
     writeJson(
       SAVED_KEY,
       savedWords.filter((saved) => saved.id !== entry.id),
     );
-  } else {
-    writeJson(SAVED_KEY, [updatedEntry, ...savedWords]);
   }
 
   const history = readJson<SavedWordEntry[]>(HISTORY_KEY, []).map((item) =>
@@ -95,6 +100,28 @@ export function toggleSavedWord(entry: SavedWordEntry): SavedWordEntry {
   writeJson(HISTORY_KEY, history);
 
   return updatedEntry;
+}
+
+export function toggleSavedWord(entry: SavedWordEntry): SavedWordEntry {
+  return setSavedWord(entry, !isWordSaved(entry.id));
+}
+
+export function findHistoryEntry(
+  word: string,
+  language: string,
+  userText: string,
+  scene: SceneTag,
+): SavedWordEntry | null {
+  const history = readJson<SavedWordEntry[]>(HISTORY_KEY, []);
+  return (
+    history.find(
+      (item) =>
+        item.word === word &&
+        item.language === language &&
+        item.userText === userText &&
+        item.scene === scene,
+    ) ?? null
+  );
 }
 
 export function replaceHistoryEntry(

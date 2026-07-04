@@ -13,6 +13,7 @@ import { Route as ShareRouteImport } from './routes/share'
 import { Route as LogsRouteImport } from './routes/logs'
 import { Route as HarborRouteImport } from './routes/harbor'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiQuickMatchRouteImport } from './routes/api/quick-match'
 import { Route as ApiMatchWordRouteImport } from './routes/api/match-word'
 import { Route as ApiFeedbackRouteImport } from './routes/api/feedback'
 import { Route as ApiAlternativeDetailRouteImport } from './routes/api/alternative-detail'
@@ -35,6 +36,11 @@ const HarborRoute = HarborRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiQuickMatchRoute = ApiQuickMatchRouteImport.update({
+  id: '/api/quick-match',
+  path: '/api/quick-match',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiMatchWordRoute = ApiMatchWordRouteImport.update({
@@ -61,6 +67,7 @@ export interface FileRoutesByFullPath {
   '/api/alternative-detail': typeof ApiAlternativeDetailRoute
   '/api/feedback': typeof ApiFeedbackRoute
   '/api/match-word': typeof ApiMatchWordRoute
+  '/api/quick-match': typeof ApiQuickMatchRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -70,6 +77,7 @@ export interface FileRoutesByTo {
   '/api/alternative-detail': typeof ApiAlternativeDetailRoute
   '/api/feedback': typeof ApiFeedbackRoute
   '/api/match-word': typeof ApiMatchWordRoute
+  '/api/quick-match': typeof ApiQuickMatchRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -80,6 +88,7 @@ export interface FileRoutesById {
   '/api/alternative-detail': typeof ApiAlternativeDetailRoute
   '/api/feedback': typeof ApiFeedbackRoute
   '/api/match-word': typeof ApiMatchWordRoute
+  '/api/quick-match': typeof ApiQuickMatchRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -91,6 +100,7 @@ export interface FileRouteTypes {
     | '/api/alternative-detail'
     | '/api/feedback'
     | '/api/match-word'
+    | '/api/quick-match'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -100,6 +110,7 @@ export interface FileRouteTypes {
     | '/api/alternative-detail'
     | '/api/feedback'
     | '/api/match-word'
+    | '/api/quick-match'
   id:
     | '__root__'
     | '/'
@@ -109,6 +120,7 @@ export interface FileRouteTypes {
     | '/api/alternative-detail'
     | '/api/feedback'
     | '/api/match-word'
+    | '/api/quick-match'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -119,6 +131,7 @@ export interface RootRouteChildren {
   ApiAlternativeDetailRoute: typeof ApiAlternativeDetailRoute
   ApiFeedbackRoute: typeof ApiFeedbackRoute
   ApiMatchWordRoute: typeof ApiMatchWordRoute
+  ApiQuickMatchRoute: typeof ApiQuickMatchRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -149,6 +162,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/quick-match': {
+      id: '/api/quick-match'
+      path: '/api/quick-match'
+      fullPath: '/api/quick-match'
+      preLoaderRoute: typeof ApiQuickMatchRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/match-word': {
@@ -183,6 +203,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAlternativeDetailRoute: ApiAlternativeDetailRoute,
   ApiFeedbackRoute: ApiFeedbackRoute,
   ApiMatchWordRoute: ApiMatchWordRoute,
+  ApiQuickMatchRoute: ApiQuickMatchRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

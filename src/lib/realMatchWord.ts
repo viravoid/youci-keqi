@@ -1,8 +1,6 @@
-import wordSeedsRaw from "@/data/word-seeds.json";
+import { wordSeeds } from "@/lib/wordData";
 import type { MatchWordInput, SceneTag, WordMatchResult, WordSeed } from "@/types/wordMatch";
 import { z } from "zod";
-
-const wordSeeds = wordSeedsRaw as unknown as WordSeed[];
 
 const reviewAlternativeSchema = z.preprocess(
   (value) =>
@@ -138,7 +136,7 @@ function scoreCandidate(seed: WordSeed, input: MatchWordInput) {
       text.includes(keyword.toLocaleLowerCase()) ? score + 6 : score,
     0,
   );
-  const sceneScore = seed.sceneTags.includes(input.scene) ? 12 : 0;
+  const sceneScore = seed.sceneTags.includes(input.scene) ? 5 : 0;
   const emotionScore = seed.emotionTags.reduce(
     (score, tag) => (text.includes(tag.toLocaleLowerCase()) ? score + 3 : score),
     0,
@@ -156,7 +154,7 @@ function pickCandidates(input: MatchWordInput) {
       score: scoreCandidate(seed, input),
     }))
     .sort((a, b) => b.score - a.score || a.index - b.index)
-    .slice(0, 8)
+    .slice(0, 15)
     .map(({ seed }) => seed);
 }
 
@@ -434,6 +432,38 @@ function normalizeNativeWord(word: string, language: string) {
   return word.trim();
 }
 
+// Fast client-side semantic frame extraction — avoids an extra AI roundtrip on EdgeOne SSR
+const semanticLexicon = {
+  separation: ["分别", "分离", "离别", "离开", "告别", "想念", "思念", "缺席", "不在"],
+  fleeting: ["短暂", "短促", "一瞬", "瞬间", "相遇", "遇见", "不可重复", "来不及"],
+  overflow: ["满溢", "倾盆", "强烈", "汹涌", "交织", "快乐", "悲伤", "悲喜"],
+  lightNature: ["阳光", "树叶", "光影", "斑驳", "自然", "树影"],
+};
+
+function extractSemanticFrame(input: MatchWordInput): SemanticFrame {
+  const text = normalizeText([input.userText, input.precisionContext].filter(Boolean).join("\n"));
+  const includesAny = (signals: string[]) =>
+    signals.filter((s) => text.includes(s.toLocaleLowerCase()));
+
+  const separationHits = includesAny(semanticLexicon.separation);
+  const fleetingHits = includesAny(semanticLexicon.fleeting);
+  const overflowHits = includesAny(semanticLexicon.overflow);
+  const lightHits = includesAny(semanticLexicon.lightNature);
+
+  return {
+    coreEvent: separationHits.length + fleetingHits.length >= 2
+      ? `${separationHits.concat(fleetingHits).slice(0, 3).join("、")}等分离/短暂体验`
+      : "",
+    emotionalTrajectory: overflowHits.length >= 2
+      ? `情绪满溢/交织：${overflowHits.slice(0, 2).join("、")}`
+      : "",
+    salientMotifs: [...new Set([...separationHits, ...fleetingHits, ...overflowHits])].slice(0, 6),
+    mustPreserve: separationHits.length > 0 ? separationHits.slice(0, 3) : fleetingHits.slice(0, 3),
+    secondaryResonances: lightHits.slice(0, 3),
+    surfaceOnlySignals: lightHits.slice(0, 3),
+  };
+}
+
 type WordAlternative = z.infer<typeof wordAlternativeSchema>;
 
 function reviewRank(review: z.infer<typeof reviewSchema>) {
@@ -576,7 +606,7 @@ export async function realMatchWord(input: MatchWordInput): Promise<WordMatchRes
   const env = getEnv();
   const runtime = resolveDeepSeekRuntimeConfig(env);
   const candidates = pickCandidates(input);
-  const silentFrame = { coreEvent: "", emotionalTrajectory: "", salientMotifs: [], mustPreserve: [], secondaryResonances: [], surfaceOnlySignals: [] };
+  const frame = extractSemanticFrame(input);
   return requestWordMatch({
     baseUrl: runtime.baseUrl,
     apiKey: runtime.apiKey,
@@ -585,8 +615,11 @@ export async function realMatchWord(input: MatchWordInput): Promise<WordMatchRes
       input.userText,
       input.scene,
       candidates,
-      { coreEvent: "", emotionalTrajectory: "", salientMotifs: [], mustPreserve: [], secondaryResonances: [], surfaceOnlySignals: [] },
+      frame,
       input.precisionContext,
     ),
   });
 }
+
+export const quickMatchWord = realMatchWord;
+export const realMatchWordStream = realMatchWord;

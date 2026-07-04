@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, LayoutGroup, motion, MotionConfig } from "framer-motion";
-import { listRecentWords, toggleSavedWord } from "@/lib/localHistory";
+import { listSavedWords, toggleSavedWord } from "@/lib/localHistory";
 import { setLastWord, type WordResult } from "@/lib/word-store";
 import { DepthBackground } from "@/components/DepthBackground";
 import type { SavedWordEntry } from "@/types/wordMatch";
@@ -36,6 +36,7 @@ type Entry = {
   loved: boolean;
   why: string;
   culture: string;
+  raw: SavedWordEntry;
 };
 
 type SortKey = "recent" | "earliest" | "loved";
@@ -63,21 +64,41 @@ function savedToEntry(entry: SavedWordEntry): Entry {
     loved: entry.saved,
     why: entry.whyItFits,
     culture: entry.cultureNote,
+    raw: entry,
   };
 }
 
 function Harbor() {
   const [localEntries, setLocalEntries] = useState<Entry[]>([]);
   const [sort, setSort] = useState<SortKey>("recent");
-  const [loved, setLoved] = useState<Record<string, boolean>>({});
   const [openId, setOpenId] = useState<string | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
-    const recent = listRecentWords(50).map(savedToEntry);
-    setLocalEntries(recent);
-    setLoved(Object.fromEntries(recent.map((entry) => [entry.id ?? entry.w, entry.loved])));
+    const saved = listSavedWords().map(savedToEntry);
+    setLocalEntries(saved);
   }, []);
+
+  const handleToggleSaved = (entry: Entry) => {
+    const itemKey = entry.id ?? entry.w;
+
+    if (entry.loved) {
+      const shouldRemove = window.confirm(`确定不再留下「${entry.w}」吗？它会从 Harbor 里移走。`);
+      if (!shouldRemove) return;
+    }
+
+    toggleSavedWord(entry.raw);
+
+    setLocalEntries((current) =>
+      current
+        .map((item) => (item.id === entry.id ? { ...item, loved: !item.loved } : item))
+        .filter((item) => item.loved),
+    );
+
+    if (openId === itemKey && entry.loved) {
+      setOpenId(null);
+    }
+  };
 
   const onShare = (c: Entry, idx: number) => {
     const payload: WordResult = {
@@ -97,18 +118,13 @@ function Harbor() {
   };
 
   const items = useMemo(() => {
-    const withLove = localEntries.map((entry) => ({
-      ...entry,
-      loved: !!loved[entry.id ?? entry.w],
-    }));
-
-    if (sort === "recent") return [...withLove].sort((a, b) => b.at - a.at);
-    if (sort === "earliest") return [...withLove].sort((a, b) => a.at - b.at);
-    return [...withLove].sort((a, b) => {
+    if (sort === "recent") return [...localEntries].sort((a, b) => b.at - a.at);
+    if (sort === "earliest") return [...localEntries].sort((a, b) => a.at - b.at);
+    return [...localEntries].sort((a, b) => {
       if (a.loved !== b.loved) return a.loved ? -1 : 1;
       return b.at - a.at;
     });
-  }, [localEntries, sort, loved]);
+  }, [localEntries, sort]);
 
   return (
     <div className="relative min-h-screen">
@@ -190,7 +206,7 @@ function Harbor() {
                         aria-label={c.loved ? "取消留下" : "留下这枚词"}
                         onClick={(e) => {
                           e.stopPropagation();
-                          setLoved((current) => ({ ...current, [itemKey]: !current[itemKey] }));
+                          handleToggleSaved(c);
                         }}
                         className="absolute right-5 top-5 font-meta text-xl leading-none text-ink-soft transition hover:text-foreground"
                         title={c.loved ? "已留下" : "想留下"}
@@ -287,8 +303,8 @@ function Harbor() {
         <div className="mt-20 text-center font-meta text-xs leading-none text-ink-soft">
           有词可栖 · 一本为情绪做的小词典
         </div>
-        <div className="mt-3 text-center font-meta text-[10px] leading-none text-ink-soft/60">
-          词库来源 · skill 作者 · AI 模型
+        <div className="mt-2 text-center font-meta text-[10px] leading-none text-ink-soft/60">
+          skill expression-precision 作者 Yang Sichang · skill shuorenhua 作者 MrGeDiao
         </div>
       </section>
     </div>

@@ -1,12 +1,11 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { addHistoryEntry, replaceHistoryEntry, toggleSavedWord } from "@/lib/localHistory";
+import { addHistoryEntry, findHistoryEntry, setSavedWord, toggleSavedWord } from "@/lib/localHistory";
 import { buildSilentPrecisionContext } from "@/lib/expressionPrecision";
-import { matchWord } from "@/lib/matchWord";
+import { matchWord, matchWordStream, quickMatch, type MatchProgress } from "@/lib/matchWord";
 import { saveFeedback as logFeedback } from "@/lib/feedbackLog";
 import { SAMPLE, saveLastWord, toWordResult, type WordResult } from "@/lib/word-store";
-import { Intro } from "@/components/Intro";
 import { DepthBackground } from "@/components/DepthBackground";
 import type { SavedWordEntry, SceneTag, WordMatchResult } from "@/types/wordMatch";
 
@@ -36,14 +35,6 @@ const fadeUp = {
   show: { opacity: 1, y: 0 },
 };
 
-const loadingSteps = [
-  "先把这段感受拆成线索",
-  "检查词义有没有真正贴住",
-  "避开只像、但不准的近义词",
-  "去更远一点的语境里找",
-  "把候选词再核对一遍",
-];
-
 function inferScene(text: string): SceneTag {
   const normalized = text.toLocaleLowerCase();
   const sceneSignals: Array<[SceneTag, string[]]> = [
@@ -66,36 +57,33 @@ function Index() {
   const [revealWord, setRevealWord] = useState<WordResult>(SAMPLE);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [loadingStep, setLoadingStep] = useState(0);
+  const [loadingMessage, setLoadingMessage] = useState("先把这段感受拆成线索");
   const [revealing, setRevealing] = useState(false);
+  // Pre-search states
+  const [quickSuggestion, setQuickSuggestion] = useState<WordResult | null>(null);
+  const [preSearching, setPreSearching] = useState(false);
+  const preSearchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastPreSearchText = useRef("");
   const resultRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!loading) {
-      setLoadingStep(0);
-      return;
-    }
-
-    const interval = window.setInterval(() => {
-      setLoadingStep((step) => (step + 1) % loadingSteps.length);
-    }, 1800);
-
-    return () => window.clearInterval(interval);
-  }, [loading]);
 
   const completeMatch = async (
     userText: string,
     scene: SceneTag,
   ) => {
     setLoading(true);
+    setLoadingMessage("先把这段感受拆成线索");
     try {
       const silentCtx = buildSilentPrecisionContext(userText, scene);
-      const matched = await matchWord({
-        userText,
-        scene,
-        excludedWord: result?.word,
-        precisionContext: silentCtx,
-      });
+      const matched = await matchWordStream(
+        { userText, scene, excludedWord: result?.word, precisionContext: silentCtx },
+        {
+          onProgress: (p: MatchProgress) => {
+            setLoadingMessage(p.message);
+          },
+        },
+      );
+
+      if (!matched) throw new Error("未能获取匹配结果。");
 
       const entry = addHistoryEntry(matched, userText, scene);
       const withInput = toWordResult(entry, userText, entry.seq);
@@ -103,9 +91,6 @@ function Index() {
       setLoading(false);
       setRevealing(true);
 
-      // After the word has bloomed in the overlay, mount the result card,
-      // smoothly scroll it into view, then let the overlay fade so the
-      // hero word morphs (via shared layoutId) onto the card's heading.
       setTimeout(() => {
         setResult(withInput);
         setResultEntry(entry);
@@ -124,6 +109,47 @@ function Index() {
     }
   };
 
+  // Debounced pre-search: fires 500ms after user stops typing
+  const doPreSearch = useCallback(
+    async (searchText: string, scene: SceneTag) => {
+      if (searchText === lastPreSearchText.current) return;
+      lastPreSearchText.current = searchText;
+
+      setPreSearching(true);
+      try {
+        const silentCtx = buildSilentPrecisionContext(searchText, scene);
+        const qr = await quickMatch({ userText: searchText, scene, precisionContext: silentCtx });
+        if (qr && searchText === lastPreSearchText.current) {
+          const entry = addHistoryEntry(qr, searchText, scene);
+          setQuickSuggestion(toWordResult(entry, searchText, entry.seq));
+        }
+      } catch {
+        // pre-search failure is silent
+      } finally {
+        setPreSearching(false);
+      }
+    },
+    [],
+  );
+
+  const onTextChange = (value: string) => {
+    setText(value);
+    setQuickSuggestion(null);
+
+    // Clear any pending pre-search
+    if (preSearchTimer.current) {
+      clearTimeout(preSearchTimer.current);
+    }
+
+    const trimmed = value.trim();
+    if (trimmed.length >= 12) {
+      preSearchTimer.current = setTimeout(() => {
+        const scene = inferScene(trimmed);
+        doPreSearch(trimmed, scene);
+      }, 500);
+    }
+  };
+
   const onSubmit = async () => {
     const userText = text.trim();
     if (!userText) return;
@@ -132,14 +158,13 @@ function Index() {
     await completeMatch(userText, scene);
   };
 
-  const confirmAlternative = (
+  const keepAlternative = (
     alternative: WordResult["alternatives"][number],
     detail?: { shortMeaning: string; whyItFits: string; cultureNote: string; shareCopy: string },
   ) => {
     if (!resultEntry) return;
 
     const nextMatch: WordMatchResult = {
-      ...resultEntry,
       word: alternative.word,
       language: alternative.language,
       pronunciation: "",
@@ -160,16 +185,20 @@ function Index() {
       ].slice(0, 3),
     };
 
-    const updatedEntry = replaceHistoryEntry(resultEntry, nextMatch);
-    const updatedResult = toWordResult(updatedEntry, updatedEntry.userText, updatedEntry.seq);
-    setResultEntry(updatedEntry);
-    setResult(updatedResult);
-    saveLastWord(updatedResult);
+    const existingEntry = findHistoryEntry(
+      nextMatch.word,
+      nextMatch.language,
+      resultEntry.userText,
+      resultEntry.scene,
+    );
+    setSavedWord(
+      existingEntry ?? addHistoryEntry(nextMatch, resultEntry.userText, resultEntry.scene),
+      true,
+    );
   };
 
   return (
     <div className="relative min-h-screen overflow-x-clip">
-      <Intro />
       <DepthBackground zoom={revealing ? 1 : 0} />
       {/* Top masthead */}
       <motion.header
@@ -235,7 +264,7 @@ function Index() {
         <div className="group mt-3 rounded-md border border-border bg-card shadow-[0_1px_0_rgba(0,0,0,0.02),0_20px_40px_-30px_rgba(60,40,20,0.25)] transition focus-within:border-foreground/40 focus-within:shadow-[0_1px_0_rgba(0,0,0,0.02),0_30px_60px_-30px_rgba(60,40,20,0.4)]">
           <textarea
             value={text}
-            onChange={(e) => setText(e.target.value)}
+            onChange={(e) => onTextChange(e.target.value)}
             placeholder="例如：明明很久没见了，却在一首歌响起的瞬间，整个人被拽回那个夏天的下午……"
             rows={6}
             className="block w-full resize-none rounded-md bg-transparent p-5 font-cn text-lg leading-relaxed text-foreground placeholder:text-ink-soft/60 focus:outline-none"
@@ -247,6 +276,36 @@ function Index() {
             <span className="font-cn">— 你的便签</span>
           </div>
         </div>
+
+        {/* Quick-match pre-search suggestion */}
+        <AnimatePresence>
+          {quickSuggestion && !loading && !result ? (
+            <motion.div
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              className="mt-3 rounded-md border border-border/60 bg-card/60 px-4 py-3"
+            >
+              <div className="flex items-center gap-3">
+                {preSearching ? (
+                  <span className="font-cn text-xs text-ink-soft">正在预感…</span>
+                ) : (
+                  <>
+                    <span className="font-cn text-[11px] uppercase tracking-[0.2em] text-ink-soft">
+                      预感
+                    </span>
+                    <span className="font-serif text-lg leading-none text-foreground">
+                      {quickSuggestion.word}
+                    </span>
+                    <span className="font-cn text-xs text-ink-soft">
+                      {quickSuggestion.language} · {quickSuggestion.meaning?.slice(0, 24)}
+                    </span>
+                  </>
+                )}
+              </div>
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
 
         {/* Scene tag picker removed for a quieter composer. */}
 
@@ -276,7 +335,7 @@ function Index() {
           </p>
         </div>
         <AnimatePresence>
-          {loading ? <LoadingTrace step={loadingStep} /> : null}
+          {loading ? <LoadingTrace message={loadingMessage} /> : null}
         </AnimatePresence>
         <AnimatePresence>
           {errorMessage ? (
@@ -309,7 +368,7 @@ function Index() {
               key={result.seq ?? result.word}
               data={result}
               entry={resultEntry}
-              onAlternativeConfirm={confirmAlternative}
+              onAlternativeConfirm={keepAlternative}
             />
           ) : (
             <EmptyShelf key="empty" />
@@ -337,6 +396,9 @@ function Index() {
         <div className="mt-20 text-center font-meta text-xs leading-none text-ink-soft">
           有词可栖 · 一本为情绪做的小词典
         </div>
+        <div className="mt-2 text-center font-meta text-[10px] leading-none text-ink-soft/60">
+          skill expression-precision 作者 Yang Sichang · skill shuorenhua 作者 MrGeDiao
+        </div>
       </section>
 
       {/* Reveal overlay — its word morphs (via shared layoutId) onto the result card's heading when it exits. */}
@@ -348,7 +410,7 @@ function Index() {
   );
 }
 
-function LoadingTrace({ step }: { step: number }) {
+function LoadingTrace({ message }: { message: string }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -374,29 +436,22 @@ function LoadingTrace({ step }: { step: number }) {
         <div className="min-w-0 flex-1">
           <AnimatePresence mode="wait">
             <motion.div
-              key={step}
+              key={message}
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
               transition={{ duration: 0.32, ease: "easeOut" }}
               className="font-cn text-sm font-medium leading-6 text-foreground"
             >
-              {loadingSteps[step]}
+              {message}
             </motion.div>
           </AnimatePresence>
-          <div className="mt-2 grid grid-cols-5 gap-1">
-            {loadingSteps.map((item, index) => (
-              <motion.div
-                key={item}
-                className="h-px rounded-full bg-foreground/20"
-                animate={{
-                  opacity: index === step ? 1 : 0.22,
-                  scaleX: index === step ? 1 : 0.75,
-                }}
-                transition={{ duration: 0.3, ease: "easeOut" }}
-                style={{ transformOrigin: "left" }}
-              />
-            ))}
+          <div className="mt-2 h-px w-full rounded-full bg-foreground/10">
+            <motion.div
+              className="h-px rounded-full bg-foreground/40"
+              animate={{ width: ["0%", "100%"] }}
+              transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+            />
           </div>
         </div>
       </div>
@@ -500,6 +555,7 @@ function ResultCard({
     { shortMeaning: string; whyItFits: string; cultureNote: string; shareCopy: string } | null
   >(null);
   const [altLoading, setAltLoading] = useState(false);
+  const [savedAlternativeKey, setSavedAlternativeKey] = useState<string | null>(null);
   const container = {
     hidden: {},
     show: { transition: { staggerChildren: 0.12, delayChildren: 0.1 } },
@@ -510,9 +566,17 @@ function ResultCard({
     setPendingAlternative(null);
     setAltDetail(null);
     setAltLoading(false);
+    setSavedAlternativeKey(null);
   }, [entry?.id, entry?.saved]);
 
   const handleAltClick = (a: WordResult["alternatives"][number]) => {
+    if (pendingAlternative?.word === a.word && pendingAlternative.language === a.language) {
+      setPendingAlternative(null);
+      setAltDetail(null);
+      setAltLoading(false);
+      return;
+    }
+
     setPendingAlternative(a);
     setAltDetail(null);
     setAltLoading(true);
@@ -634,7 +698,11 @@ function ResultCard({
                   </button>
                   {pendingAlternative?.word === a.word &&
                   pendingAlternative.language === a.language ? (
-                    <div className="mt-3 rounded-md border border-border bg-note/70 p-4">
+                    <div
+                      className="mt-3 rounded-md border border-border bg-note/70 p-4"
+                      onClick={(event) => event.stopPropagation()}
+                      onPointerDown={(event) => event.stopPropagation()}
+                    >
                       {altLoading ? (
                         <p className="font-cn text-sm text-ink-soft">正在查找「{a.word}」的详情…</p>
                       ) : altDetail ? (
@@ -655,22 +723,38 @@ function ResultCard({
                           </div>
                           <div className="mt-4 hairline" />
                           <p className="mt-3 font-cn text-sm text-foreground">
-                            这个是不是更贴切？确认后，只把「{a.word}」计入停靠过的词。
+                            如果你觉得它也说中了，可以把「{a.word}」额外留下，不会替换当前这枚词。
                           </p>
                           <div className="mt-3 flex flex-wrap gap-2">
                             <button
                               type="button"
-                              onClick={() => onAlternativeConfirm(a, altDetail)}
+                              onClick={(event) => {
+                                event.preventDefault();
+                                event.stopPropagation();
+                                onAlternativeConfirm(a, altDetail);
+                                setSavedAlternativeKey(`${a.language}-${a.word}`);
+                              }}
+                              onPointerDown={(event) => event.stopPropagation()}
                               className="inline-flex h-8 items-center rounded-full bg-foreground px-4 font-cn text-xs text-primary-foreground transition hover:opacity-90"
                             >
-                              是，停靠这个词
+                              {savedAlternativeKey === `${a.language}-${a.word}` ? "已留下这个词" : "也留下这个词"}
                             </button>
                             <button
                               type="button"
-                              onClick={() => setPendingAlternative(null)}
+                              onClick={(event) => {
+                                event.preventDefault();
+                                event.stopPropagation();
+                                setPendingAlternative(null);
+                                setAltDetail(null);
+                                setAltLoading(false);
+                              }}
+                              onPointerDown={(event) => {
+                                event.preventDefault();
+                                event.stopPropagation();
+                              }}
                               className="inline-flex h-8 items-center rounded-full border border-border px-4 font-cn text-xs text-ink-soft transition hover:border-foreground hover:text-foreground"
                             >
-                              先不换
+                              先不留
                             </button>
                           </div>
                         </>

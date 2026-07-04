@@ -1,7 +1,0 @@
-{
-  "functions": {
-    "ssr": {
-      "timeout": 60
-    }
-  }
-}

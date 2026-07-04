@@ -295,8 +295,8 @@ function SharePage() {
         <div className="mt-20 text-center font-meta text-xs leading-none text-ink-soft">
           有词可栖 · 一本为情绪做的小词典
         </div>
-        <div className="mt-3 text-center font-meta text-[10px] leading-none text-ink-soft/60">
-          词库来源 · skill 作者 · AI 模型
+        <div className="mt-2 text-center font-meta text-[10px] leading-none text-ink-soft/60">
+          skill expression-precision 作者 Yang Sichang · skill shuorenhua 作者 MrGeDiao
         </div>
       </section>
     </div>
